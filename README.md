@@ -5,7 +5,6 @@ Lab exercise for the *Gestion et chasse aux menaces* course (see [Enoncé_lab1.p
 ## Structure
 
 - `USB_BAD/` - Proof-of-concept BadUSB payload: a keylogger (`payload.py`) that exfiltrates captured keystrokes to a local C2 server (`c2_server.py`) over HTTP, plus a helper (`get_cred.py`) to extract credential-like strings from captured logs.
-- `malicious-file/` - Sample malicious USB/autorun artifacts used for the exercise (PDF analysis tools, autorun payloads, exported samples).
 
 This is coursework for educational/defensive security purposes only.
 
