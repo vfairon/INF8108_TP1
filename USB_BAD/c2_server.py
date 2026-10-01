@@ -9,12 +9,8 @@ OUTPUT.mkdir(exist_ok=True)
 
 @app.post("/collect")
 def collect():
-    data = request.get_json()
-
-    with open(OUTPUT / "data.txt", "a") as f:
-        f.write(f"{data}\n")
-
+    uploaded = request.files["file"]
+    uploaded.save(OUTPUT / uploaded.filename)
     return {"status": "ok"}
 
-
-app.run(host="0.0.0.0", port=8080)
+app.run(host="127.0.0.1", port=8080)

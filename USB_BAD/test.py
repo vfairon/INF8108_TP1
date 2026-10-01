@@ -1,14 +1,19 @@
-from pynput.keyboard import Key, Listener
+from Xlib import X, XK
+from Xlib.display import Display
+from pynput.keyboard import Listener
 
+display = Display()
+
+def keycode_to_keysym(keycode):
+    return display.keycode_to_keysym(keycode, 0)
 
 def on_press(key):
-    print("KEY:", repr(key))
+    vk = getattr(key, "vk", None)
+    if vk is None:
+        return
+    keysym = keycode_to_keysym(vk)
+    char = XK.keysym_to_string(keysym)
+    print("resolved:", repr(char))
 
-
-def on_release(key):
-    if key == Key.esc:
-        return False
-
-
-with Listener(on_press=on_press, on_release=on_release) as listener:
+with Listener(on_press=on_press) as listener:
     listener.join()

